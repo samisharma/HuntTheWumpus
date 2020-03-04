@@ -17,10 +17,10 @@ namespace nu.wumpus.project
             fileNameOfTriviaQuestions = nameTrivia;
         }
 
-        public GetHints(String fileNameOfHints)
+        /*public GetHints(String fileNameOfHints)
         {
             String nameHints = fileNameOfHints;
-        }
+        } */
 
         public String PlayerMovesForward(String nameHints)
         {

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Wumpus
+namespace nu.wumpus.project
 {
     class Caves
     {
@@ -13,7 +13,6 @@ namespace Wumpus
         public static int[] special = { 1, 7, 13, 19, 25, 6, 12, 18, 24, 30 };
         private StreamWriter writer;
         private StreamReader reader;
-        private FileInfo fileInfo;
         private int playerLoc;
         private int startingLoc;
         private ArrayList[] door = new ArrayList[30] { new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList(), new ArrayList()};
@@ -38,9 +37,16 @@ namespace Wumpus
         }
         public Caves()
         {
-            GenerateDoors();
-            GenerateHazards();
-            ExportTo("Save.txt");
+            if (File.Exists("Save.txt"))
+            {
+                ImportFrom("Save.txt");
+            }
+            else
+            {
+                GenerateDoors();
+                GenerateHazards();
+                ExportTo("Save.txt");
+            }
         }
 
         //accessors
@@ -60,15 +66,15 @@ namespace Wumpus
             int[] connect = ConnectedRooms(r);
             foreach (int i in connect)
             {
-                if (GetHazard(i) != null)
+                if (GetCurrentHazard(i) != null)
                 {
-                    hazards.Add(GetHazard(i));
+                    hazards.Add(GetCurrentHazard(i));
                 }
             }
             string[] str = (String[])hazards.ToArray(typeof(String));
             return str;
         }
-        public String GetHazard(int r)
+        public String GetCurrentHazard(int r)
         {
             if (wumpus[r-1] == true)
             {
@@ -88,7 +94,74 @@ namespace Wumpus
         {
             Random rand = new Random();
             int choice = rand.Next(0, 100);
-            return "Hint Stub";
+            if (choice < 30)
+            {
+                for (int i = 0; i < 30; i++)
+                {
+                    if (wumpus[i] == true)
+                    {
+                        int[] near = ConnectedRooms(i + 1);
+                        return ("The wumpus is next to room " + near[rand.Next(0, 6)]);
+                    }
+                }
+            } else if (choice < 60)
+            {
+                int[] temp = new int[2];
+                temp[0] = -1;
+                temp[1] = -1;
+                for (int i = 0; i < 30; i++)
+                {
+                    if (pits[i] == true)
+                    {
+                        if (temp[0] != -1)
+                        {
+                            temp[0] = i + 1;
+                        } else
+                        {
+                            temp[1] = i + 1;
+                        }
+                    }
+                }
+                if (choice < 50)
+                {
+                    return ("theres a pit in room " + temp[rand.Next(0, 2)]);
+                }
+                return ("theres a pit in room " + temp[0] + " and " + temp[1]);
+            }else if (choice < 90)
+            {
+                int[] temp = new int[2];
+                temp[0] = -1;
+                temp[1] = -1;
+                for (int i = 0; i < 30; i++)
+                {
+                    if (bats[i] == true)
+                    {
+                        if (temp[0] != -1)
+                        {
+                            temp[0] = i + 1;
+                        }
+                        else
+                        {
+                            temp[1] = i + 1;
+                        }
+                    }
+                }
+                if (choice < 80)
+                {
+                    return ("theres a bat in room " + temp[rand.Next(0, 2)]);
+                }
+                return ("theres a bat in room " + temp[0] + " and " + temp[1]);
+            } else
+            {
+                for (int i = 0; i < 30; i++)
+                {
+                    if (wumpus[i] == true)
+                    {
+                        return ("The wumpus is in room " + (i + 1));
+                    }
+                }
+            }
+            return "error";
         }
 
         //mutators
@@ -102,33 +175,47 @@ namespace Wumpus
             }
             return false;
         }
-        public void ForceMovePlayer(int target)
+        private void ForceMovePlayer(int target)
         {
             playerLoc = target;
 
         }
 
-        public Boolean EncounterBat(int r)
+        public void EncounterBat(int r)
         {
             Random rand = new Random();
             int candidate = rand.Next(1, 31);
-            while (bats[candidate-1] | pits[candidate - 1] | wumpus[candidate - 1])
+            while (bats[candidate-1] | pits[candidate - 1] | wumpus[candidate - 1] | candidate == r)
             {
                 candidate = rand.Next(1, 31);
             }
             bats[r - 1] = false;
             bats[candidate - 1] = true;
             ForceMovePlayer(rand.Next(1, 31));
-            return true;
+            
+        }
+
+        public void EncounterPit()
+        {
+            ForceMovePlayer(startingLoc); 
+        }
+        public void EncounterWumpus(int r)
+        {
+            Random rand = new Random();
+            int candidate = rand.Next(1, 31);
+            int[] near = ConnectedRooms(r);
+            while (bats[candidate - 1] | pits[candidate - 1] | wumpus[candidate - 1] | near.Contains(candidate) | candidate == r)
+            {
+                candidate = rand.Next(1, 31);
+            }
+            wumpus[r - 1] = false;
+            wumpus[candidate - 1] = true;
+
         }
         
 
         //quality of life methods
-        public void ArriveAt(int r)
-        {
-
-        }
-        public int[] ConnectedRooms(int r)
+        private int[] ConnectedRooms(int r)
         {
             int[] ret = new int[6];
             ret[0] = Range(r+1);
@@ -203,7 +290,7 @@ namespace Wumpus
             writer.Close();
         }
 
-        public Boolean AllConnect()
+        private Boolean AllConnect()
         {
             ArrayList done = new ArrayList();
             ArrayList saw = new ArrayList();
@@ -232,7 +319,7 @@ namespace Wumpus
 
 
         }
-        public void GenerateDoors()
+        private void GenerateDoors()
         {
             Random rand = new Random();
             
@@ -280,13 +367,13 @@ namespace Wumpus
             }
 
         }
-        public void PlaceDoor(int a, int b)
+        private void PlaceDoor(int a, int b)
         {
             door[a-1].Add(b);
             door[b-1].Add(a);
             Console.WriteLine("added door " + a + " " + b);
         }
-        public void GenerateHazards()
+        private void GenerateHazards()
         {
             Random rand = new Random();
             ArrayList taken = new ArrayList();
